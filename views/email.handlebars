@@ -1,0 +1,33 @@
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Verify your Email for DYNO Account</title>
+    <style>
+      body { margin: 0; padding: 0; display: flex; justify-content: center;
+      align-items: center; height: 100vh; } .container { width: auto;
+      text-align: center; padding: 20px; border: 1px solid #ddd; border-radius:
+      5px; background-color: #fff; } img { width: 100px; } p { font-size: 18px;
+      margin: 20px 0; } a { display: inline-block; padding: 6px 20px;
+      background: #07f6ec; color: rgb(12, 12, 12) !important; animation: 'ease
+      .1s'; border: 1.5px solid #1C6DD0; border-radius: 5px; text-decoration:
+      none; font-size: 18px; } a:hover: { background: #07f6ec; animation: ease
+      .1s }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <p>Hey {{name}}!</p>
+      <p>Thank you for signing up with your email
+        {{email}}.
+        {{propertiesString}}</p>
+      <p>Team MathonGo.</p>
+      <p>If you wish to unsubscribe from our mailing list, please click
+        <a href="http://localhost:9060/api/v1/unsubscribe/{{_id}}">here</a>.</p>
+    </div>
+  </body>
+
+</html>
