@@ -48,6 +48,20 @@ const list = asyncHandler(async (req, res, next) => {
   }
 });
 
+const getLists = asyncHandler(async (req, res, next) => {
+  try {
+    const newList = List.find();
+
+    res.status(201).json(new ApiResponse(201, newList));
+  } catch (error) {
+    next(
+      new ApiError(500, "An error occurred while saving the list", [
+        error.message,
+      ])
+    );
+  }
+});
+
 const users = asyncHandler(async (req, res, next) => {
   const listId = req.params.listId;
   const file = req.file;
@@ -272,4 +286,4 @@ const unSubscribe = asyncHandler(async (req, res, next) => {
   );
 });
 
-export { list, users, sendEmails, unSubscribe };
+export { list, getLists, users, sendEmails, unSubscribe };
