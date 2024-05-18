@@ -9,10 +9,8 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-
 const list = asyncHandler(async (req, res, next) => {
   const { title, customProperties } = req.body;
-  // Check if title or customProperties are empty
   if (
     !title ||
     !customProperties ||
@@ -22,17 +20,16 @@ const list = asyncHandler(async (req, res, next) => {
     throw new ApiError(400, "All fields are required");
   }
 
-  // Check if any customProperty has empty title or fallbackValue
   for (let prop of customProperties) {
-    if (
-      !prop.title ||
-      !prop.fallbackValue ||
-      prop.title.trim() === "" ||
-      prop.fallbackValue.trim() === ""
-    ) {
+    if (!prop.title || prop.title.trim() === "") {
       throw new ApiError(400, "All fields in customProperties are required");
     }
   }
+  const existingList = await List.findOne({ title: title.toLowerCase() });
+  if (existingList) {
+    throw new ApiError(400, "A list with this title already exists");
+  }
+
   try {
     const newList = new List({
       title,
@@ -59,7 +56,6 @@ const users = asyncHandler(async (req, res, next) => {
     return next(new ApiError(400, "No file uploaded."));
   }
 
-  // Fetch the list to get the custom properties and their fallback values
   const list = await List.findById(listId);
   const fallbackValues = {};
   for (let prop of list.customProperties) {
@@ -76,53 +72,57 @@ const users = asyncHandler(async (req, res, next) => {
     .pipe(csvParser())
     .on("data", (data) => results.push(data))
     .on("end", async () => {
-      // At this point, 'results' should be an array of user objects from your CSV file.
-      // You can now loop through it and add each user to your database.
+      const emailPattern = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/;
 
       for (let user of results) {
-        // Create a new object for the properties
         const properties = { ...fallbackValues };
 
-        // Overwrite the fallback values with the values from the CSV file, if they exist and are not empty
         for (let prop in user) {
           if (user[prop]) {
             properties[prop] = user[prop];
           }
         }
 
-        // Create a new user with the data from the CSV file and the listId from the route parameter
+        if (!emailPattern.test(user.email)) {
+          errorCount++;
+          errors.push({ email: user.email, error: "Invalid email format." });
+          failedRecords.push({ ...user, error: "Invalid email format." });
+          continue;
+        }
+
         const newUser = new User({
           name: user.name,
           email: user.email,
-          properties, // Use the new properties object
+          properties,
           list: listId,
         });
 
-        // Save the new user to the database
         try {
           await newUser.save();
           successfulCount++;
         } catch (err) {
           errorCount++;
           errors.push({ email: user.email, error: err.message });
-          failedRecords.push({ ...user, error: err.message }); // Add the failed record to the array
-          continue; // Continue with the next user
+          failedRecords.push({ ...user, error: err.message });
+          continue;
         }
       }
 
-      // Delete the file from the file system
       fs.unlink(file.path, (err) => {
         if (err) {
           console.error("Error deleting file:", err);
         }
       });
 
-      // Send a response when done
       if (errorCount > 0) {
         const json2csvParser = new Parser();
-        const csv = json2csvParser.parse(failedRecords); // Convert the failed records to CSV
-        fs.writeFileSync("failed_records.csv", csv); // Write the CSV data to a file
+        const csv = json2csvParser.parse(failedRecords);
 
+        // Create a unique name for the file using a timestamp
+        const timestamp = Date.now();
+        const fileName = `failed_records_${timestamp}.csv`;
+
+        fs.writeFileSync(fileName, csv);
         return next(
           new ApiError(
             400,
@@ -131,7 +131,7 @@ const users = asyncHandler(async (req, res, next) => {
               errorCount,
               total: successfulCount + errorCount,
               errors,
-              failedRecordsFile: "failed_records.csv", // Include the path to the CSV file in the response
+              failedRecordsFile: fileName,
             },
             "Some users were not added due to errors."
           )
@@ -154,7 +154,6 @@ const users = asyncHandler(async (req, res, next) => {
 
 const sendEmails = asyncHandler(async (req, res, next) => {
   const listId = req.params.id;
-  // Check if userId is empty
   if (!listId || listId.trim() === "") {
     return next(new ApiError(400, "list ID is required."));
   }
@@ -166,12 +165,15 @@ const sendEmails = asyncHandler(async (req, res, next) => {
   const users = await User.find({ list: listId, subscribe: true });
 
   let transporter = nodemailer.createTransport({
-    host: "smtp.ethereal.email",
-    port: 587,
+    service: "gmail",
+    // host: "smtp.ethereal.email",
+    port: 465,
     secure: false,
     auth: {
-      user: "edd.jakubowski60@ethereal.email",
-      pass: "Ned7T19GNgQdeDUM7H",
+      // user: "edd.jakubowski60@ethereal.email",
+      // pass: "Ned7T19GNgQdeDUM7H",
+      user: "tiadsforme@gmail.com",
+      pass: "jkhgvpxcarwuianv",
     },
   });
 
@@ -254,18 +256,14 @@ const sendEmails = asyncHandler(async (req, res, next) => {
 
 const unSubscribe = asyncHandler(async (req, res, next) => {
   const userId = req.params.id;
-  // Check if userId is empty
   if (!userId || userId.trim() === "") {
     return next(new ApiError(400, "User ID is required."));
   }
-  // Fetch the user from the database
   const user = await User.findById(userId);
 
   if (!user) {
     return next(new ApiError(404, "User not found."));
   }
-
-  // Update the user's record to indicate that they have unsubscribed
   user.subscribe = false;
   await user.save();
 
