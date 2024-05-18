@@ -50,7 +50,7 @@ const list = asyncHandler(async (req, res, next) => {
 
 const getLists = asyncHandler(async (req, res, next) => {
   try {
-    const newList = List.find();
+    const newList = await List.find();
 
     res.status(201).json(new ApiResponse(201, newList));
   } catch (error) {
